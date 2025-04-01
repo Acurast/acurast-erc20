@@ -2,19 +2,15 @@
 // Learn more about it at https://hardhat.org/ignition
 
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
-import Ibc from "./Ibc";
+import AcurastHyperdriveIbc from "./AcurastHyperdriveIbc";
 
 const AcurastToken = buildModule("AcurastToken", (m) => {
-  const { ibc } = m.useModule(Ibc);
+  const { ibcProxy } = m.useModule(AcurastHyperdriveIbc);
 
   // Deploy the AcurastToken Contract
-  const acurastToken = m.contract("AcurastToken");
-  // Initialize the AcurastToken Contract directly after
-  m.call(acurastToken, "initialize", [
-    m.getAccount(0), // Initial recipient of 100 ACUs tokens (temporary for testing)
-    m.getAccount(0), // Contract owner
-    ibc, // Set the IBC Contract address in the Token contract
-    "5EYCAe5h8kmzoA4mxYQmkSEPPrDy93poMdg9Lh1d8SehErVo", // token pallet account on Acurast parachain
+  const acurastToken = m.contract("AcurastToken", [
+    ibcProxy.address, // Set the IBC Contract address in the Token contract
+    "0x6d6f646c687970746f6b656e0000000000000000000000000000000000000000", // token pallet account on Acurast parachain (5EYCAe5h8kmzoA4mxYQmkSEPPrDy93poMdg9Lh1d8SehErVo)
   ]);
 
   return { acurastToken };

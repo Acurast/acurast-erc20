@@ -1,4 +1,5 @@
 import { HardhatUserConfig, vars } from "hardhat/config";
+import "@openzeppelin/hardhat-upgrades";
 import "@nomicfoundation/hardhat-toolbox";
 
 // Go to https://infura.io, sign up, create a new API key

@@ -5,6 +5,7 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract Ibc is OwnableUpgradeable, UUPSUpgradeable {
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -37,7 +38,7 @@ contract Ibc is OwnableUpgradeable, UUPSUpgradeable {
         bytes32 id;
         address sender;
         bytes32 nonce;
-        address recipient;
+        bytes32 recipient;
         bytes payload;
     }
 
@@ -109,7 +110,7 @@ contract Ibc is OwnableUpgradeable, UUPSUpgradeable {
 
     function sendMessage(
         bytes32 nonce,
-        address recipient,
+        bytes32 recipient,
         bytes memory payload,
         uint256 ttl
     ) public payable returns (bool) {

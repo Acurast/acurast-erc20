@@ -2,13 +2,8 @@
 // Compatible with OpenZeppelin Contracts ^5.0.0
 pragma solidity ^0.8.28;
 
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {ERC20BurnableUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
-import {ERC20PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
-import {ERC20PermitUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IIbc {
     function config()
@@ -23,21 +18,26 @@ interface IIbc {
         );
 }
 
-contract AcurastToken is
-    Initializable,
-    ERC20Upgradeable,
-    ERC20BurnableUpgradeable,
-    ERC20PausableUpgradeable,
-    OwnableUpgradeable,
-    ERC20PermitUpgradeable,
-    UUPSUpgradeable
-{
+contract AcurastToken is ERC20, Ownable {
     address public ibcContract;
     bytes32 public tokenPalletAccount; // The only allowed sender and automatic receiver
     uint256 public outgoingTTL;
     mapping(uint32 => bool) public incomingTransferNonces;
     uint32 public nextTransferNonce;
     mapping(uint32 => OutgoingTransfer) public outgoingTransfers;
+
+    constructor(
+        address _ibcContract,
+        bytes32 _tokenPalletAccount
+    ) ERC20("AcurastToken", "ACU") Ownable(msg.sender) {
+        require(_ibcContract != address(0), "Invalid IBC contract address");
+        ibcContract = _ibcContract;
+        tokenPalletAccount = _tokenPalletAccount;
+        outgoingTTL = 50;
+
+        // TODO remove (temporary for testing)
+        _mint(msg.sender, 100 * 10 ** decimals());
+    }
 
     struct OutgoingTransfer {
         address sender;
@@ -73,39 +73,6 @@ contract AcurastToken is
         address indexed dest,
         uint32 transferNonce
     );
-
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
-
-    function initialize(
-        // TODO remove (temporary for testing)
-        address recipient,
-        address initialOwner,
-        address _ibcContract,
-        bytes32 _tokenPalletAccount
-    ) public initializer {
-        __ERC20_init("AcurastToken", "ACU");
-        __ERC20Burnable_init();
-        __ERC20Pausable_init();
-        __Ownable_init(initialOwner);
-        __ERC20Permit_init("AcurastToken");
-        __UUPSUpgradeable_init();
-        require(_ibcContract != address(0), "Invalid IBC contract address");
-        ibcContract = _ibcContract;
-        tokenPalletAccount = _tokenPalletAccount;
-
-        _mint(recipient, 100 * 10 ** decimals());
-    }
-
-    function pause() public onlyOwner {
-        _pause();
-    }
-
-    function unpause() public onlyOwner {
-        _unpause();
-    }
 
     function mint(address to, uint256 amount) public onlyOwner {
         _mint(to, amount);
@@ -206,7 +173,7 @@ contract AcurastToken is
         // Call sendMessage on the IBC contract
         (bool success, ) = ibcContract.call{value: msg.value}(
             abi.encodeWithSignature(
-                "sendMessage(bytes32,address,bytes,uint256)",
+                "sendMessage(bytes32,bytes32,bytes,uint256)",
                 nonce,
                 tokenPalletAccount,
                 payload,
@@ -260,19 +227,5 @@ contract AcurastToken is
             transfer.dest,
             transferNonce
         );
-    }
-
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyOwner {}
-
-    // The following functions are overrides required by Solidity.
-
-    function _update(
-        address from,
-        address to,
-        uint256 value
-    ) internal override(ERC20Upgradeable, ERC20PausableUpgradeable) {
-        super._update(from, to, value);
     }
 }
