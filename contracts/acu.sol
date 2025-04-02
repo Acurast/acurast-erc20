@@ -29,7 +29,7 @@ contract AcurastToken is ERC20, Ownable {
     constructor(
         address _ibcContract,
         bytes32 _tokenPalletAccount
-    ) ERC20("AcurastToken", "ACU") Ownable(msg.sender) {
+    ) ERC20("Acurast", "ACU") Ownable(msg.sender) {
         require(_ibcContract != address(0), "Invalid IBC contract address");
         ibcContract = _ibcContract;
         tokenPalletAccount = _tokenPalletAccount;
@@ -73,6 +73,10 @@ contract AcurastToken is ERC20, Ownable {
         address indexed dest,
         uint32 transferNonce
     );
+
+    function decimals() public view virtual override returns (uint8) {
+        return 12;
+    }
 
     function mint(address to, uint256 amount) public onlyOwner {
         _mint(to, amount);
