@@ -1,22 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-contract Ibc is OwnableUpgradeable, UUPSUpgradeable {
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
+contract Ibc is Ownable {
+    Config public config;
+    mapping(bytes32 => OutgoingMessageWithMeta) public outgoing;
+    mapping(bytes32 => IncomingMessageWithMeta) public incoming;
+    uint256 public messageCounter;
+    mapping(address => bool) public oraclePublicKeys;
 
-    function initialize(address initialOwner) public initializer {
-        __Ownable_init(initialOwner);
-        __UUPSUpgradeable_init();
-
+    constructor() Ownable(msg.sender) {
         config = Config({
             minDeliverySignatures: 1,
             minReceiptSignatures: 1,
@@ -63,12 +58,6 @@ contract Ibc is OwnableUpgradeable, UUPSUpgradeable {
         uint256 currentBlock;
         address relayer;
     }
-
-    Config public config;
-    mapping(bytes32 => OutgoingMessageWithMeta) public outgoing;
-    mapping(bytes32 => IncomingMessageWithMeta) public incoming;
-    uint256 public messageCounter;
-    mapping(address => bool) public oraclePublicKeys;
 
     event OracleAdded(address indexed oracle);
     event OracleRemoved(address indexed oracle);
@@ -288,8 +277,4 @@ contract Ibc is OwnableUpgradeable, UUPSUpgradeable {
             }
         }
     }
-
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyOwner {}
 }

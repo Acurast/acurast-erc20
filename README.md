@@ -25,8 +25,6 @@ yarn run hardhat ignition deploy ignition/modules/AcurastToken.ts --network sepo
 
 ### Sepolia
 
-- [contracts/ibc.sol:Ibc](https://sepolia.etherscan.io/address/0xb1bEA47a3510Bf55fd444C5C11AEf04C7488152B#code)
+- [AcurastHyperdriveIbc#Ibc](https://sepolia.etherscan.io/address/0x3b6622E395886D84372D6a096e1d9B5536f7B1BF#code)
 
-- [@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy](https://sepolia.etherscan.io/address/0x61363cb390eb1a1F2AdBF45b2e55f19C6FEd4Dab#code)
-
-- [contracts/acu.sol:AcurastToken](https://sepolia.etherscan.io/address/0xD4E015140B9c6aF811835f83Ef86aBb518cCE470#code)
+- [AcurastToken#AcurastToken](https://sepolia.etherscan.io/address/0x2a7f61aeEFee7B946173fD525B22d331E0E1aE68#code)
