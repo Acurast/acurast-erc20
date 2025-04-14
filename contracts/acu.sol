@@ -22,6 +22,7 @@ contract AcurastToken is ERC20, Ownable {
     address public ibcContract;
     bytes32 public tokenPalletAccount; // The only allowed sender and automatic receiver
     uint256 public outgoingTTL;
+    // a map with all incoming transfers for deduplication
     mapping(uint32 => bool) public incomingTransferNonces;
     uint32 public nextTransferNonce;
     mapping(uint32 => OutgoingTransfer) public outgoingTransfers;
@@ -76,10 +77,6 @@ contract AcurastToken is ERC20, Ownable {
 
     function decimals() public view virtual override returns (uint8) {
         return 12;
-    }
-
-    function mint(address to, uint256 amount) public onlyOwner {
-        _mint(to, amount);
     }
 
     function updateIbcContract(address _ibcContract) external onlyOwner {

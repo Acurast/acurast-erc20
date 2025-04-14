@@ -5,6 +5,20 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract Ibc is Ownable {
+    /*
+        A constant that represents this chain as a recipient. It's the enum index of this Acurast enum:
+
+        pub enum Subject<AccountId, Contract> {
+            Acurast(Layer<AccountId, Contract>) = 0,
+            AlephZero(Layer<AccountId32, Contract>) = 1,
+            Vara(Layer<AccountId32, Contract>) = 2,
+            Ethereum(Layer<AccountId20, AccountId20>) = 3,
+            Solana(Layer<AccountId32, AccountId32>) = 4,
+        }
+    */
+    uint8 public constant ACURAST_INDEX = 0;
+    uint8 public constant ETHEREUM_INDEX = 3;
+
     Config public config;
     mapping(bytes32 => OutgoingMessageWithMeta) public outgoing;
     mapping(bytes32 => IncomingMessageWithMeta) public incoming;
@@ -31,16 +45,20 @@ contract Ibc is Ownable {
 
     struct OutgoingMessage {
         bytes32 id;
+        // uint8 senderIndex; <- since we know senderIndex is always ETHEREUM_INDEX it's redundant to store
         address sender;
         bytes32 nonce;
+        uint8 recipientIndex;
         bytes32 recipient;
         bytes payload;
     }
 
     struct IncomingMessage {
         bytes32 id;
+        uint8 senderIndex;
         bytes32 sender;
         bytes32 nonce;
+        // uint8 recipientIndex; <- since we know recipientIndex is always ETHEREUM_INDEX it's redundant to store
         address recipient;
         bytes payload;
     }
@@ -65,7 +83,9 @@ contract Ibc is Ownable {
     event MessageDelivered(bytes32 id);
     event MessageProcessed(bytes32 id);
     event MessageProcessedWithErrors(
+        uint8 senderIndex,
         bytes32 sender,
+        // uint8 recipientIndex; <- since we know recipientIndex is always ETHEREUM_INDEX it's redundant to emit in event
         address recipient,
         bytes payload,
         string reason
@@ -122,6 +142,7 @@ contract Ibc is Ownable {
                 id: id,
                 sender: msg.sender,
                 nonce: nonce,
+                recipientIndex: ACURAST_INDEX,
                 recipient: recipient,
                 payload: payload
             }),
@@ -167,25 +188,33 @@ contract Ibc is Ownable {
     }
 
     function receiveMessage(
-        bytes32 sender,
+        bytes32 acruastSender,
         bytes32 nonce,
+        uint8 recipientIndex,
         address recipient,
         bytes memory payload,
         bytes[] memory signatures
     ) public {
-        // since id is hash of sender + nonce, it's not necessary to be part of signed payload
+        // since id is hash of acruastSender + nonce, it's not necessary for the id to be part of signed payload
         bytes32 messageHash = keccak256(
-            abi.encodePacked(sender, nonce, recipient, payload)
+            abi.encodePacked(acruastSender, nonce, recipientIndex, recipient, payload)
         );
+        require(
+            recipientIndex == ETHEREUM_INDEX,
+            "Message recipientIndex invalid"
+        );
+
         checkSignatures(messageHash, signatures, config.minReceiptSignatures); // Ensure valid signature
 
-        bytes32 id = keccak256(abi.encodePacked(sender, nonce));
+        bytes32 id = keccak256(abi.encodePacked(acruastSender, nonce));
         require(incoming[id].message.id == 0, "Message already received");
         incoming[id] = IncomingMessageWithMeta({
             message: IncomingMessage({
                 id: id,
-                sender: sender,
+                senderIndex: ACURAST_INDEX,
+                sender: acruastSender,
                 nonce: nonce,
+                // uint8 recipientIndex <- since we know recipientIndex is always ETHEREUM_INDEX it's redundant to store
                 recipient: recipient,
                 payload: payload
             }),
@@ -198,7 +227,7 @@ contract Ibc is Ownable {
         (bool success, bytes memory returnData) = recipient.call(
             abi.encodeWithSignature(
                 "processMessage(bytes32,bytes)",
-                sender,
+                acruastSender,
                 payload
             )
         );
@@ -206,7 +235,8 @@ contract Ibc is Ownable {
         if (!success) {
             string memory errorMessage = _getRevertReason(returnData);
             emit MessageProcessedWithErrors(
-                sender,
+                ACURAST_INDEX,
+                acruastSender,
                 recipient,
                 payload,
                 errorMessage
