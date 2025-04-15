@@ -212,7 +212,7 @@ contract AcurastToken is ERC20, Ownable {
         // Call sendMessage on the IBC contract
         (bool success, ) = ibcContract.call{value: msg.value}(
             abi.encodeWithSignature(
-                "sendMessage(bytes32,address,bytes,uint256)",
+                "sendMessage(bytes32,bytes32,bytes,uint256)",
                 nonce,
                 tokenPalletAccount,
                 payload,
