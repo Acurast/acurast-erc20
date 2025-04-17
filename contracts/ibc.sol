@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 contract Ibc is Ownable {
     /*
@@ -268,7 +269,7 @@ contract Ibc is Ownable {
         uint256 validSignatures = 0;
 
         for (uint256 i = 0; i < signatures.length; i++) {
-            address recoveredSigner = ECDSA.recover(messageHash, signatures[i]);
+            address recoveredSigner = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
 
             // Ensure the signer is an authorized oracle
             require(oraclePublicKeys[recoveredSigner], "Invalid signature");
