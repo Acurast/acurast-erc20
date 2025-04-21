@@ -33,6 +33,6 @@ yarn run hardhat ignition wipe chain-11155111 AcurastToken#AcurastToken
 
 ### Sepolia
 
-- [AcurastHyperdriveIbc#Ibc](https://sepolia.etherscan.io/address/0xeb5fd20887C2367FDF48D171F07028914E2a46e8#code)
+- [AcurastHyperdriveIbc#Ibc](https://sepolia.etherscan.io/address/0xB36f54267dAe670eFf17154ac9Bb19Df8fe89d3B#code)
 
-- [AcurastToken#AcurastToken](https://sepolia.etherscan.io/address/0x6D314E433bf446C833f11D4D07Ed38720d6069D0#code)
+- [AcurastToken#AcurastToken](https://sepolia.etherscan.io/address/0x1C8aF26022fB8E7B7f9A64cC5686Df42290aFD9b#code)

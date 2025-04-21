@@ -107,26 +107,32 @@ contract AcurastToken is ERC20, Ownable {
 
         require(payload.length >= 4, "Invalid action");
 
+        // e.g.
+        // 00000000 0000000000000000000000003B9ACA00 00000000 00000013       147B33C5B12767B3ABEE547212AF27B1398CE517
+        // action   amount (16 bytes)                asset_id transfer_nonce dest
+
         uint32 action;
         assembly {
-            action := mload(add(payload, 32)) // Read first 4 bytes
+            action := shr(224, mload(add(payload, 32))) // bytes 0–3 (skipping length field of 4 bytes)
         }
 
         if (action == 0) {
             require(payload.length == 48, "Invalid ation payload");
 
-            // Decode the remaining payload safely
-            (
-                ,
-                uint128 amount,
-                uint32 assetId,
-                uint32 transferNonce,
-                address dest
-            ) = abi.decode(payload, (uint32, uint128, uint32, uint32, address));
+            uint128 amount;
+            uint32 assetId;
+            uint32 transferNonce;
+            address dest;
+            assembly {
+                amount := mload(add(payload, 36)) // bytes 4–19
+                assetId := shr(224, mload(add(payload, 52))) // bytes 20–23
+                transferNonce := shr(224, mload(add(payload, 56))) // bytes 24–27
+                dest := shr(96, mload(add(payload, 60))) // bytes 28–47
+            }
 
             // disallow transfer to 0-address (burning the tokens)
             require(dest != address(0), "Invalid recipient");
-            require(assetId != 0, "Unsupported assetId");
+            require(assetId == 0, "Unsupported assetId");
             require(
                 !incomingTransferNonces[transferNonce],
                 "Transfer already received"

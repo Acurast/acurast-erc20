@@ -172,8 +172,10 @@ contract Ibc is Ownable {
         // since id is hash of sender + nonce, it's not necessary to be part of signed payload
         bytes32 messageHash = keccak256(
             abi.encodePacked(
+                ETHEREUM_INDEX,
                 outgoing[id].message.sender,
                 outgoing[id].message.nonce,
+                outgoing[id].message.recipientIndex,
                 outgoing[id].message.recipient,
                 outgoing[id].message.payload,
                 msg.sender // ensures no front-running of competing relayer trying to get fee
@@ -198,7 +200,7 @@ contract Ibc is Ownable {
     ) public {
         // since id is hash of acruastSender + nonce, it's not necessary for the id to be part of signed payload
         bytes32 messageHash = keccak256(
-            abi.encodePacked(acruastSender, nonce, recipientIndex, recipient, payload)
+            abi.encodePacked(ACURAST_INDEX, acruastSender, nonce, recipientIndex, recipient, payload)
         );
         require(
             recipientIndex == ETHEREUM_INDEX,
@@ -242,6 +244,7 @@ contract Ibc is Ownable {
                 payload,
                 errorMessage
             );
+            return;
         }
 
         emit MessageProcessed(id);
