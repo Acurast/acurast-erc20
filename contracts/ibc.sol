@@ -75,7 +75,7 @@ contract Ibc is Ownable {
     struct IncomingMessageWithMeta {
         IncomingMessage message;
         uint256 currentBlock;
-        address relayer;
+        bytes32 relayer;
     }
 
     event OracleAdded(address indexed oracle);
@@ -196,6 +196,7 @@ contract Ibc is Ownable {
         uint8 recipientIndex,
         address recipient,
         bytes memory payload,
+        bytes32 relayer,
         bytes[] memory signatures
     ) public {
         // since id is hash of acruastSender + nonce, it's not necessary for the id to be part of signed payload
@@ -222,7 +223,7 @@ contract Ibc is Ownable {
                 payload: payload
             }),
             currentBlock: block.number,
-            relayer: msg.sender
+            relayer: relayer
         });
 
         require(recipient.code.length > 0, "Recipient is not a contract");
