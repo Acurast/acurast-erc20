@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
 interface IIbc {
     function config()
@@ -18,7 +19,7 @@ interface IIbc {
         );
 }
 
-contract AcurastToken is ERC20, Ownable {
+contract AcurastToken is ERC20, ERC20Permit, Ownable {
     address public ibcContract;
     bytes32 public tokenPalletAccount; // The only allowed sender and automatic receiver
     uint256 public outgoingTTL;
@@ -29,15 +30,15 @@ contract AcurastToken is ERC20, Ownable {
 
     constructor(
         address _ibcContract,
-        bytes32 _tokenPalletAccount
-    ) ERC20("Acurast", "ACU") Ownable(msg.sender) {
+        bytes32 _tokenPalletAccount,
+        uint256 _initialSupply
+    ) ERC20("Acurast", "ACU") ERC20Permit("Acurast") Ownable(msg.sender) {
         require(_ibcContract != address(0), "Invalid IBC contract address");
         ibcContract = _ibcContract;
         tokenPalletAccount = _tokenPalletAccount;
         outgoingTTL = 50;
 
-        // TODO remove (temporary for testing)
-        _mint(msg.sender, 100 * 10 ** decimals());
+        _mint(msg.sender, _initialSupply * (10 ** decimals()));
     }
 
     struct OutgoingTransfer {
@@ -103,6 +104,7 @@ contract AcurastToken is ERC20, Ownable {
     }
 
     function processMessage(bytes32 sender, bytes memory payload) public {
+        require(msg.sender == ibcContract, "Unauthorized origin");
         require(sender == tokenPalletAccount, "Unauthorized sender");
 
         require(payload.length >= 4, "Invalid action");
@@ -117,7 +119,7 @@ contract AcurastToken is ERC20, Ownable {
         }
 
         if (action == 0) {
-            require(payload.length == 48, "Invalid ation payload");
+            require(payload.length == 48, "Invalid action payload");
 
             uint128 amount;
             uint32 assetId;
