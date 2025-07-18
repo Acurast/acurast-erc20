@@ -9,8 +9,16 @@ const AcurastToken = buildModule("AcurastToken", (m) => {
 
   // Deploy the AcurastToken Contract
   const acurastToken = m.contract("AcurastToken", [
+    "Acurast",
+    "ACU",
     ibc, // Set the IBC Contract address in the Token contract
-    "0x6d6f646c687970746f6b656e0000000000000000000000000000000000000000", // token pallet account on Acurast parachain (5EYCAe5h8kmzoA4mxYQmkSEPPrDy93poMdg9Lh1d8SehErVo)
+    "0x0000000000000000000000000000000000000000000000000000000000000000", // token pallet account on Acurast parachain
+    [
+      {
+        source: "0x0D9649EF2b751D94f6dBb1370F1EE052f33107d4", // replace with real address
+        amount: "1000",
+      },
+    ],
   ]);
 
   return { acurastToken };
