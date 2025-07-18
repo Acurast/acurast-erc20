@@ -6,6 +6,8 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
+import "./acu-erc20.sol";
+
 interface IIbc {
     function config()
         external
@@ -19,7 +21,7 @@ interface IIbc {
         );
 }
 
-contract AcurastToken is ERC20, ERC20Permit, Ownable {
+contract AcurastToken is AcuERC20 {
     address public ibcContract;
     bytes32 public tokenPalletAccount; // The only allowed sender and automatic receiver
     uint256 public outgoingTTL;
@@ -29,16 +31,16 @@ contract AcurastToken is ERC20, ERC20Permit, Ownable {
     mapping(uint32 => OutgoingTransfer) public outgoingTransfers;
 
     constructor(
+        string memory _name,
+        string memory _symbol,
         address _ibcContract,
         bytes32 _tokenPalletAccount,
-        uint256 _initialSupply
-    ) ERC20("Acurast", "ACU") ERC20Permit("Acurast") Ownable(msg.sender) {
+        InitialBalance[] memory _initialBalances
+    ) AcuERC20(_name, _symbol, _initialBalances) {
         require(_ibcContract != address(0), "Invalid IBC contract address");
         ibcContract = _ibcContract;
         tokenPalletAccount = _tokenPalletAccount;
         outgoingTTL = 50;
-
-        _mint(msg.sender, _initialSupply * (10 ** decimals()));
     }
 
     struct OutgoingTransfer {
@@ -51,10 +53,12 @@ contract AcurastToken is ERC20, ERC20Permit, Ownable {
         address indexed oldAddress,
         address indexed newAddress
     );
+
     event TokenPalletAccountUpdated(
         bytes32 indexed oldAddress,
         bytes32 indexed newAddress
     );
+
     event OutgoingTTLUpdated(uint256 indexed oldTTL, uint256 indexed newTTL);
 
     event TransferSent(
@@ -70,6 +74,7 @@ contract AcurastToken is ERC20, ERC20Permit, Ownable {
         bytes32 indexed dest,
         uint32 transferNonce
     );
+
     event TransferReceived(
         uint256 amount,
         address indexed dest,
@@ -106,30 +111,45 @@ contract AcurastToken is ERC20, ERC20Permit, Ownable {
     function processMessage(bytes32 sender, bytes memory payload) public {
         require(msg.sender == ibcContract, "Unauthorized origin");
         require(sender == tokenPalletAccount, "Unauthorized sender");
-
         require(payload.length >= 4, "Invalid action");
 
         // e.g.
-        // 00000000 0000000000000000000000003B9ACA00 00000000 00000013       147B33C5B12767B3ABEE547212AF27B1398CE517
-        // action   amount (16 bytes)                asset_id transfer_nonce dest
+        //        00000030 00000000 0000000000000000000000003B9ACA00 00000000 00000013       147B33C5B12767B3ABEE547212AF27B1398CE517
+        //        length   action   amount                           asset_id transfer_nonce dest
+        // bytes: 4        4        16                               4        4              20                                       (total: 48 without length prefix)
 
+        // When you use a dynamic bytes memory variable like payload, the memory slot pointed to by the variable stores the length of the byte array. The actual data of the array begins 32 bytes after this pointer
         uint32 action;
         assembly {
             action := shr(224, mload(add(payload, 32))) // bytes 0–3 (skipping length field of 4 bytes)
         }
 
         if (action == 0) {
+            // `payload.length` returns the length of the data chunk, not the length of the dynamic array, in other words it just reads the first 4 bytes encoding the length
             require(payload.length == 48, "Invalid action payload");
 
             uint128 amount;
             uint32 assetId;
             uint32 transferNonce;
             address dest;
+
             assembly {
-                amount := mload(add(payload, 36)) // bytes 4–19
-                assetId := shr(224, mload(add(payload, 52))) // bytes 20–23
-                transferNonce := shr(224, mload(add(payload, 56))) // bytes 24–27
-                dest := shr(96, mload(add(payload, 60))) // bytes 28–47
+                // The amount is a u128 (16 bytes) starting at offset 4 in the data.
+                // We load the 32-byte word at data_ptr + 4. The amount is in the most significant 16 bytes.
+                // We shift right by 128 bits (256 - 128) to isolate the amount.
+                amount := shr(128, mload(add(payload, 36))) // bytes 4-19
+
+                // assetId is a u32 (4 bytes) at offset 20.
+                // Load the word at data_ptr + 20 and shift right by 224 bits (256 - 32).
+                assetId := shr(224, mload(add(payload, 52))) // bytes 20-23
+
+                // transferNonce is a u32 (4 bytes) at offset 24.
+                // Load the word at data_ptr + 24 and shift right by 224 bits (256 - 32).
+                transferNonce := shr(224, mload(add(payload, 56))) // bytes 24-27
+
+                // dest is an address (20 bytes) at offset 28.
+                // Load the word at data_ptr + 28 and shift right by 96 bits (256 - 160).
+                dest := shr(96, mload(add(payload, 60))) // bytes 28-47
             }
 
             // disallow transfer to 0-address (burning the tokens)
@@ -143,12 +163,31 @@ contract AcurastToken is ERC20, ERC20Permit, Ownable {
             incomingTransferNonces[transferNonce] = true;
             _mint(dest, amount);
             emit TransferReceived(amount, dest, transferNonce);
+        } else if (action == 1) {
+            // enable/disable contract transfers
+            // e.g.
+            //        00000030 00000001 01
+            //        length   action   enable_flag
+            // bytes: 4        4        1              (total: 5 without length prefix)
+
+            require(payload.length == 5, "Invalid action payload");
+
+            uint8 enable;
+
+            assembly {
+                enable := shr(248, mload(add(payload, 36)))
+            }
+
+            _setEnabled(enable != 0);
         } else {
             revert("Unsupported action");
         }
     }
 
-    function transferNative(uint128 amount, bytes32 dest) public payable {
+    function transferNative(
+        uint128 amount,
+        bytes32 dest
+    ) public payable onlyIfEnabled {
         require(amount > 0, "Cannot transfer 0 amount");
         require(balanceOf(msg.sender) >= amount, "Insufficient ACU balance");
 
@@ -215,7 +254,7 @@ contract AcurastToken is ERC20, ERC20Permit, Ownable {
             transfer.dest
         );
 
-        // Do not burn the ACU amount again since this is a retry that will be deduplicated at target chain (Acurast), in case both original and retry message(s) get delivered eventually.
+        // Do not burn the ACU amount again since this is a retry that will be deduplicated at target chain, in case both original and retry message(s) get delivered eventually.
 
         // Call sendMessage on the IBC contract
         (bool success, ) = ibcContract.call{value: msg.value}(
