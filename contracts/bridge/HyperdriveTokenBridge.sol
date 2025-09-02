@@ -25,9 +25,9 @@ contract HyperdriveTokenBridge is Ownable {
     uint256 public outgoingTTL;
     
     // a map with all incoming transfers for deduplication
-    mapping(uint32 => bool) public incomingTransferNonces;
-    uint32 public nextTransferNonce;
-    mapping(uint32 => OutgoingTransfer) public outgoingTransfers;
+    mapping(uint64 => bool) public incomingTransferNonces;
+    uint64 public nextTransferNonce;
+    mapping(uint64 => OutgoingTransfer) public outgoingTransfers;
 
     uint8 public constant BRIDGE_TRANSFER_ACTION = 0;
     uint8 public constant ENABLE_ACTION = 1;
@@ -71,14 +71,14 @@ contract HyperdriveTokenBridge is Ownable {
         uint128 amount,
         uint256 fee,
         bytes32 indexed dest,
-        uint32 transferNonce
+        uint64 transferNonce
     );
 
     event TransferRetried(
         uint128 amount,
         uint256 fee,
         bytes32 indexed dest,
-        uint32 transferNonce
+        uint64 transferNonce
     );
 
     event TransferRestrictionsUpdated(
@@ -89,7 +89,7 @@ contract HyperdriveTokenBridge is Ownable {
     event TransferReceived(
         uint256 amount,
         address indexed dest,
-        uint32 transferNonce
+        uint64 transferNonce
     );
 
     function updateIbcContract(address _ibcContract) external onlyOwner {
@@ -122,9 +122,9 @@ contract HyperdriveTokenBridge is Ownable {
         require(payload.length >= 4, "Invalid action");
 
         // e.g.
-        //        00000030 00000000 0000000000000000000000003B9ACA00 00000000 00000013       147B33C5B12767B3ABEE547212AF27B1398CE517
-        //        length   action   amount                           asset_id transfer_nonce dest
-        // bytes: 4        4        16                               4        4              20                                       (total: 48 without length prefix)
+        //        00000030 00000000 0000000000000000000000003B9ACA00 00000000 0000000000000013       147B33C5B12767B3ABEE547212AF27B1398CE517
+        //        length   action   amount                           asset_id transfer_nonce         dest
+        // bytes: 4        4        16                               4        8                      20                                       (total: 52 without length prefix)
 
         // When you use a dynamic bytes memory variable like payload, the memory slot pointed to by the variable stores the length of the byte array. The actual data of the array begins 32 bytes after this pointer
         uint32 action;
@@ -134,11 +134,11 @@ contract HyperdriveTokenBridge is Ownable {
 
         if (action == BRIDGE_TRANSFER_ACTION) {
             // `payload.length` returns the length of the data chunk, not the length of the dynamic array, in other words it just reads the first 4 bytes encoding the length
-            require(payload.length == 48, "Invalid action payload");
+            require(payload.length == 52, "Invalid action payload");
 
             uint128 amount;
             uint32 assetId;
-            uint32 transferNonce;
+            uint64 transferNonce;
             address dest;
 
             // SECURITY FIX: Safer assembly with explicit bounds checking
@@ -148,7 +148,7 @@ contract HyperdriveTokenBridge is Ownable {
                 let payloadLen := mload(payload)
                 
                 // Double-check payload length in assembly
-                if lt(payloadLen, 48) {
+                if lt(payloadLen, 52) {
                     revert(0, 0)
                 }
 
@@ -162,12 +162,12 @@ contract HyperdriveTokenBridge is Ownable {
                 assetId := shr(224, mload(add(payloadPtr, 20))) // bytes 20-23
 
                 // transferNonce is a u32 (4 bytes) at offset 24.
-                // Load the word at data_ptr + 24 and shift right by 224 bits (256 - 32).
-                transferNonce := shr(224, mload(add(payloadPtr, 24))) // bytes 24-27
+                // Load the word at data_ptr + 24 and shift right by 192 bits (256 - 64).
+                transferNonce := shr(192, mload(add(payloadPtr, 24))) // bytes 24-31
 
                 // dest is an address (20 bytes) at offset 28.
-                // Load the word at data_ptr + 28 and shift right by 96 bits (256 - 160).
-                dest := shr(96, mload(add(payloadPtr, 28))) // bytes 28-47
+                // Load the word at data_ptr + 32 and shift right by 96 bits (256 - 160).
+                dest := shr(96, mload(add(payloadPtr, 32))) // bytes 32-51
             }
 
             // disallow transfer to 0-address (burning the tokens)
@@ -219,7 +219,7 @@ contract HyperdriveTokenBridge is Ownable {
         require(dest != bytes32(0), "Invalid destination");
         require(token.balanceOf(msg.sender) >= amount, "Insufficient ACU balance");
 
-        uint32 transferNonce = nextTransferNonce;
+        uint64 transferNonce = nextTransferNonce;
 
         // Increment transfer nonce
         nextTransferNonce++;
@@ -269,7 +269,7 @@ contract HyperdriveTokenBridge is Ownable {
         emit TransferSent(amount, msg.value, dest, transferNonce);
     }
 
-    function retryTransferNative(uint32 transferNonce) public payable {
+    function retryTransferNative(uint64 transferNonce) public payable {
         require(
             outgoingTransfers[transferNonce].amount > 0,
             "Transfer not found"
