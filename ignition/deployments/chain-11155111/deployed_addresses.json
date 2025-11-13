@@ -1,5 +1,6 @@
 {
   "AcurastHyperdriveIbc#Ibc": "0x9B3b3275A4f49FEC03dE488a245162A30F300E86",
   "AcurastToken#AcurastToken": "0x705A18eB47702064e0F4c6EB4Ae6059429Eb3a1A",
-  "AcurastToken#HyperdriveTokenBridge": "0xf27de96535A489CC39259BC2Fa0EF967778BFEfF"
+  "AcurastToken#HyperdriveTokenBridge": "0xf27de96535A489CC39259BC2Fa0EF967778BFEfF",
+  "TransferRestrictor#TransferRestrictor": "0xba55F030C7c05e7a16669b20178E2c4B3c531479"
 }
