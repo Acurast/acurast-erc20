@@ -1,4 +1,4 @@
-# hyperdrive-ethereum
+# Acurast ERC20 and Hyperdrive contracts
 
 ## Build
 
@@ -41,8 +41,7 @@ yarn run hardhat ignition wipe chain-11155111 AcurastToken#AcurastToken
 
 ### Ethereum
 
-- [AcurastHyperdriveIbc#Ibc](https://etherscan.io/address/0x3de12e9622542e0e32079c2146cacaf40f7e093f)
-- [AcurastToken#AcurastToken](https://etherscan.io/address/0x53b6cE1f64f78FF8037f01706FC47f3D53ef1B7C)
+- [AcurastToken#AcurastToken](https://etherscan.io/address/0x216b3643ff8b7BB30d8A48E9F1BD550126202AdD)
   
 **Fee estimation**
 
